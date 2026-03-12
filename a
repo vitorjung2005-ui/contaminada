@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alerta de Irregularidade</title>
+    <style>
+        /* Estilos focados em usabilidade para Tablet */
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            max-width: 900px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background-color: #f0f2f5; 
+            color: #333;
+        }
+        .card { 
+            background: white; 
+            padding: 25px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05); 
+            margin-bottom: 25px; 
+        }
+        h2 { margin-top: 0; color: #2c3e50; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        
+        /* Câmera e Botões */
+        .camera-container { display: flex; flex-direction: column; align-items: center; gap: 15px; }
+        video { width: 100%; max-width: 600px; border-radius: 8px; background: #000; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+        .botoes-foto { display: flex; gap: 15px; width: 100%; max-width: 600px; }
+        
+        .btn { 
+            flex: 1; 
+            padding: 15px; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            color: white; 
+            font-weight: bold; 
+            font-size: 16px; 
+            text-transform: uppercase;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .btn:active { transform: translateY(2px); box-shadow: none; }
+        .btn-red { background-color: #e74c3c; }
+        .btn-green { background-color: #2ecc71; }
+        .btn-blue { background-color: #2980b9; width: 100%; padding: 18px; font-size: 18px; margin-top: 15px; }
+        
+        /* Previews das fotos tiradas */
+        .previews { display: flex; gap: 20px; justify-content: center; margin-top: 20px; width: 100%; }
+        .preview-box { text-align: center; flex: 1; max-width: 250px; }
+        .preview-box p { font-weight: bold; margin-bottom: 5px; }
+        canvas.thumb { width: 100%; border-radius: 8px; border: 2px solid #bdc3c7; background: #ecf0f1; aspect-ratio: 4/3; }
+        
+        /* Formulário */
+        .input-group { margin-bottom: 20px; }
+        .input-group label { display: block; margin-bottom: 8px; font-weight: bold; color: #34495e; font-size: 16px;}
+        .input-group input, .input-group textarea { 
+            width: 100%; 
+            padding: 15px; 
+            border: 1px solid #bdc3c7; 
+            border-radius: 8px; 
+            box-sizing: border-box; 
+            font-size: 16px;
+            font-family: inherit;
+        }
+        
+        #finalCanvas { display: none; } /* Oculto, apenas para renderização */
+    </style>
+</head>
+<body>
+
+    <div class="card camera-container">
+        <h2>1. Captura de Imagens</h2>
+        <video id="video" autoplay playsinline></video>
+        <div class="botoes-foto">
+            <button class="btn btn-red" onclick="capturar('contaminada')">📷 Foto: Contaminada</button>
+            <button class="btn btn-green" onclick="capturar('correta')">📷 Foto: Correta</button>
+        </div>
+        
+        <div class="previews">
+            <div class="preview-box">
+                <p style="color: #c0392b;">🔴 Contaminada</p>
+                <canvas id="thumb-contaminada" class="thumb" width="800" height="600"></canvas>
+            </div>
+            <div class="preview-box">
+                <p style="color: #27ae60;">🟢 Correta</p>
+                <canvas id="thumb-correta" class="thumb" width="800" height="600"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>2. Dados da Ocorrência</h2>
+        <div class="input-group">
+            <label for="titulo">Ocorrido (Título):</label>
+            <input type="text" id="titulo" placeholder="Ex: EPI fora do padrão na linha de montagem">
+        </div>
+        <div class="input-group">
+            <label for="local">Local (Descrição):</label>
+            <textarea id="local" rows="3" placeholder="Ex: Setor de Embalagem, Máquina 02"></textarea>
+        </div>
+        
+        <button class="btn btn-blue" onclick="gerarPNG()">Gerar Alerta (Salvar PNG)</button>
+    </div>
+
+    <canvas id="finalCanvas" width="1600" height="900"></canvas>
+
+    <script>
+        const video = document.getElementById('video');
+        const imgContaminada = document.getElementById('thumb-contaminada');
+        const imgCorreta = document.getElementById('thumb-correta');
+        
+        // Tenta iniciar a câmera traseira do tablet
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+            .then(stream => { video.srcObject = stream; })
+            .catch(err => { 
+                alert("Erro ao acessar câmera. Verifique as permissões do navegador."); 
+                console.error(err);
+            });
+
+        function capturar(tipo) {
+            const canvas = tipo === 'contaminada' ? imgContaminada : imgCorreta;
+            const context = canvas.getContext('2d');
+            // Pega o frame do vídeo e joga no canvas de preview
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        }
+
+        function gerarPNG() {
+            const titulo = document.getElementById('titulo').value.trim();
+            const local = document.getElementById('local').value.trim();
+            
+            if (!titulo || !local) {
+                alert("Por favor, preencha o campo de Ocorrido e Local antes de gerar o alerta.");
+                return;
+            }
+
+            const canvas = document.getElementById('finalCanvas');
+            const ctx = canvas.getContext('2d');
+
+            // Preencher fundo de branco
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Estilos de Texto
+            ctx.textAlign = "center";
+            
+            // Desenhar Título Principal
+            ctx.fillStyle = "#2c3e50";
+            ctx.font = "bold 55px 'Segoe UI', Arial";
+            ctx.fillText(titulo.toUpperCase(), canvas.width / 2, 90);
+            
+            // Desenhar Local
+            ctx.fillStyle = "#7f8c8d";
+            ctx.font = "35px 'Segoe UI', Arial";
+            ctx.fillText("LOCAL: " + local, canvas.width / 2, 150);
+
+            // Configurações para as imagens (Lado a Lado)
+            const imgWidth = 650;
+            const imgHeight = 487; // Mantendo proporção 4:3
+            const yPos = 220;
+            const espacamento = 100;
+            const xContaminada = (canvas.width / 2) - imgWidth - (espacamento / 2);
+            const xCorreta = (canvas.width / 2) + (espacamento / 2);
+
+            // 1. Renderizar foto Contaminada
+            ctx.drawImage(imgContaminada, xContaminada, yPos, imgWidth, imgHeight);
+            // Borda e Tarja Vermelha
+            ctx.lineWidth = 10;
+            ctx.strokeStyle = "#e74c3c";
+            ctx.strokeRect(xContaminada, yPos, imgWidth, imgHeight);
+            ctx.fillStyle = "#e74c3c";
+            ctx.fillRect(xContaminada, yPos + imgHeight, imgWidth, 70);
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 40px Arial";
+            ctx.fillText("INCORRETO / CONTAMINADA", xContaminada + (imgWidth/2), yPos + imgHeight + 50);
+
+            // 2. Renderizar foto Correta
+            ctx.drawImage(imgCorreta, xCorreta, yPos, imgWidth, imgHeight);
+            // Borda e Tarja Verde
+            ctx.strokeStyle = "#2ecc71";
+            ctx.strokeRect(xCorreta, yPos, imgWidth, imgHeight);
+            ctx.fillStyle = "#2ecc71";
+            ctx.fillRect(xCorreta, yPos + imgHeight, imgWidth, 70);
+            ctx.fillStyle = "#ffffff";
+            ctx.fillText("CORRETO / PADRÃO", xCorreta + (imgWidth/2), yPos + imgHeight + 50);
+
+            // Rodapé
+            const dataHora = new Date().toLocaleString('pt-BR');
+            ctx.fillStyle = "#95a5a6";
+            ctx.font = "25px Arial";
+            ctx.fillText("Registro gerado em: " + dataHora, canvas.width / 2, 850);
+
+            // --- Ação Final: Download no Dispositivo ---
+            // Posteriormente, podemos trocar este bloco por um fetch() via POST para enviar à sua infraestrutura
+            const link = document.createElement('a');
+            link.download = `Alerta_${Date.now()}.png`;
+            link.href = canvas.toDataURL("image/png");
+            link.click();
+        }
+    </script>
+</body>
+</html>
